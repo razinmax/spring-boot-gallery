@@ -6,5 +6,11 @@
 </head>
 <body>
 <h1 th:text="${appName}" style="color: green">Default app name</h1>
+<ul>
+    <li th:each="p : ${posts}">
+        <p th:text="${p.text}">text</p>
+        <p>(лайков <span th:text="${p.likes}">999</span>)</p>
+    </li>
+</ul>
 </body>
 </html>
