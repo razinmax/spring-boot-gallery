@@ -19,7 +19,7 @@ public class PostsViewController {
     public String list(Model model) {
         model.addAttribute("appName", "Моё супер приложение");
         model.addAttribute("posts", postService.listAllPosts());
-        return "list";
+        return "list"; //list.html
     }
 
     @ResponseBody
