@@ -1,38 +1,151 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>TODO</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <title>Галерея изображений</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-    <script src="/main.js"></script>
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <style>
+        .image-thumbnail {
+            height: 200px;
+            object-fit: cover;
+            cursor: pointer;
+        }
+        
+    </style>
 </head>
 <body>
-<div class="container">
-    <h1 th:text="${appName}" style="color: green">Default app name</h1>
-    <hr/>
-    <div class="mb-3">
-        <a href="/new" class="btn btn-success">Добавить новый пост</a>
+<div class="container py-4">
+    <h1 class="text-primary mb-4">Галерея изображений</h1>
+
+    <!-- Сортировка -->
+    <div class="mb-4">
+        <div class="text-center">
+            <label for="sortSelect" class="mr-2">Сортировка:</label>
+            <select id="sortSelect" class="form-control d-inline-block w-auto" onchange="changeSorting()">
+                <option value="date&dir=desc" th:selected="${currentSort == 'date' && currentDir == 'desc'}">
+                    По дате (новые сверху)
+                </option>
+                <option value="date&dir=asc" th:selected="${currentSort == 'date' && currentDir == 'asc'}">
+                    По дате (старые сверху)
+                </option>
+                <option value="name&dir=asc" th:selected="${currentSort == 'name' && currentDir == 'asc'}">
+                    По имени (А-Я)
+                </option>
+                <option value="name&dir=desc" th:selected="${currentSort == 'name' && currentDir == 'desc'}">
+                    По имени (Я-А)
+                </option>
+                <option value="size&dir=desc" th:selected="${currentSort == 'size' && currentDir == 'desc'}">
+                    По размеру (большие сверху)
+                </option>
+                <option value="size&dir=asc" th:selected="${currentSort == 'size' && currentDir == 'asc'}">
+                    По размеру (маленькие сверху)
+                </option>
+            </select>
+        </div>
     </div>
-    <div class="content">
-        <div class="row article" th:each="post : ${posts}">
-            <div class="col-md-10 col-md-offset-1">
-                <h3 th:text="${'Пост от ' + #dates.format(post.creationDate, 'yyyy-MM-dd HH:mm')}">
-                    Пост от 2019.09.08
-                </h3>
+
+    <!-- Форма загрузки -->
+    <div class="mb-4">
+        <form id="uploadForm" method="post" enctype="multipart/form-data" action="/upload">
+            <div class="form-group mb-2">
+                <input type="file" name="file" class="form-control" 
+                       accept="image/*" required>
             </div>
-            <div class="col-md-11 description">
-                <p class="description-text" th:text="${post.text}">Text</p>
-            </div>
-            <div class="col-md-1">
-                <button th:attr="data-post-id=${post.id}" class="btn btn-sm btn-secondary like" th:text="${post.likes + ' ❤'}">0 ❤</button>
-            </div>
-            <div class="col-md-12">
-                <hr/>
+            <button type="submit" class="btn btn-primary">Загрузить</button>
+        </form>
+        <div id="alertContainer"></div>
+    </div>
+
+    <!-- Галерея -->
+    <div class="row">
+        <div th:each="img : ${images}" class="col-md-3 mb-4">
+            <div class="card shadow-sm h-100">
+                <!-- Изображение -->
+                <img th:src="@{/uploads/{filename}(filename=${img.filename})}"
+                     class="card-img-top image-thumbnail"
+                     th:alt="${img.name}"
+                     data-toggle="modal" data-target="#imageModal"
+                     th:attr="data-img=@{/uploads/{filename}(filename=${img.filename})}"
+                     th:attrappend="data-title=${img.name}">
+                
+                <!-- Информация об изображении -->
+                <div class="card-body">
+                    <h6 class="card-title" th:text="${img.name}">Название</h6>
+                    <p class="card-text mb-1">
+                        <small th:text="${#numbers.formatDecimal(img.size / 1024, 1, 2) + ' КБ'}">Размер</small>
+                    </p>
+                    <p class="card-text">
+                        <small th:text="${#dates.format(img.uploadDate, 'dd.MM.yyyy HH:mm')}">Дата</small>
+                    </p>
+                    <button class="btn btn-sm btn-outline-primary mt-2 edit-name-btn" 
+                            th:data-image-id="${img.id}" 
+                            title="Редактировать название">
+                        Редактировать название
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Сообщение если нет изображений -->
+    <div th:if="${#lists.isEmpty(images)}" class="text-center py-5">
+        <h4 class="text-muted">Галерея пуста</h4>
+        <p class="text-muted">Загрузите первое изображение</p>
+    </div>
+    <!-- Модальное окно для просмотра изображения -->
+    <div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">Изображение</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" src="" alt="full" class="img-fluid">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для редактирования названия -->
+    <div class="modal fade" id="editNameModal" tabindex="-1" role="dialog" aria-labelledby="editNameModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editNameModalLabel">Редактировать название</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="editNameForm">
+                        <div class="form-group">
+                            <label for="editNameInput">Название изображения:</label>
+                            <input type="text" class="form-control" id="editNameInput" 
+                                   maxlength="255" required 
+                                   placeholder="Введите новое название...">
+                            <small class="form-text text-muted">
+                                Максимум 255 символов
+                            </small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="saveNameBtn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
+
+<script src="/main.js"></script>
 </body>
 </html>
